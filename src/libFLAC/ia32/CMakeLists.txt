@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 3.12)
-
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+add_compile_options(-I${CMAKE_CURRENT_SOURCE_DIR}/)
 
 if(APPLE)
     add_compile_options(-dOBJ_FORMAT_macho)

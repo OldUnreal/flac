@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.0)
-
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "[xX]86(_64)?|(AMD|amd)64|i[346]86")
-    option(WITH_AVX "Enable AVX, AVX2 optimizations" ON)
-endif()
-
 option(WITH_ASM "Use any assembly optimization routines" ON)
 
 check_include_file("cpuid.h" HAVE_CPUID_H)
@@ -12,14 +6,17 @@ check_include_file("sys/param.h" HAVE_SYS_PARAM_H)
 set(CMAKE_REQUIRED_LIBRARIES m)
 check_function_exists(lround HAVE_LROUND)
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "[xX]86_64|(AMD|amd)64")
-    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(IA32 TRUE)
-    endif()
-    add_definitions(-DFLAC__CPU_X86_64 -DFLAC__ALIGN_MALLOC_DATA)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "([xX]|i[346])86")
-    set(IA32 TRUE)
-    add_definitions(-DFLAC__CPU_IA32 -DFLAC__ALIGN_MALLOC_DATA)
+include(CheckCSourceCompiles)
+include(CheckCPUArch)
+
+check_cpu_arch_x64(FLAC__CPU_X86_64)
+if(NOT FLAC__CPU_X86_64)
+    check_cpu_arch_x86(FLAC__CPU_IA32)
+endif()
+
+if(FLAC__CPU_X86_64 OR FLAC__CPU_IA32)
+    set(FLAC__ALIGN_MALLOC_DATA 1)
+    option(WITH_AVX "Enable AVX, AVX2 optimizations" ON)
 endif()
 
 include(CheckLanguage)
@@ -33,7 +30,7 @@ if(NOT WITH_ASM)
     add_definitions(-DFLAC__NO_ASM)
 endif()
 
-if(IA32)
+if(FLAC__CPU_IA32)
     if(WITH_ASM AND CMAKE_ASM_NASM_COMPILER)
         add_subdirectory(ia32)
     endif()
@@ -46,13 +43,6 @@ if(IA32)
             $<$<BOOL:${MSVC}>:/arch:SSE2>)
     endif()
 endif()
-
-
-set(prefix "${CMAKE_INSTALL_PREFIX}")
-set(exec_prefix "${CMAKE_INSTALL_PREFIX}")
-set(libdir "${CMAKE_INSTALL_FULL_LIBDIR}")
-set(includedir "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
-configure_file(flac.pc.in flac.pc @ONLY)
 
 include_directories("include")
 
@@ -84,6 +74,8 @@ add_library(FLAC
     stream_encoder_intrin_avx2.c
     stream_encoder_framing.c
     window.c
+    $<$<BOOL:${WIN32}>:../../include/share/windows_unicode_filenames.h>
+    $<$<BOOL:${WIN32}>:windows_unicode_filenames.c>
     $<$<BOOL:${OGG_FOUND}>:ogg_decoder_aspect.c>
     $<$<BOOL:${OGG_FOUND}>:ogg_encoder_aspect.c>
     $<$<BOOL:${OGG_FOUND}>:ogg_helper.c>
@@ -91,31 +83,43 @@ add_library(FLAC
 if(TARGET FLAC-asm)
     target_sources(FLAC PRIVATE $<TARGET_OBJECTS:FLAC-asm>)
 endif()
-if(WIN32)
-    target_sources(FLAC PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/windows_unicode_filenames.c>)
-endif()
 
 target_compile_definitions(FLAC
     PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:FLAC_API_EXPORTS>
-    PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:FLAC__USE_VISIBILITY_ATTR>
     PUBLIC $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:FLAC__NO_DLL>)
+if(NOT WIN32)
+    target_compile_definitions(FLAC PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:FLAC__USE_VISIBILITY_ATTR>)
+endif()
 target_include_directories(FLAC INTERFACE
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
-target_link_libraries(FLAC PRIVATE $<$<BOOL:${HAVE_LROUND}>:m>)
+target_link_libraries(FLAC PUBLIC $<$<BOOL:${HAVE_LROUND}>:m>)
 if(TARGET Ogg::ogg)
     target_link_libraries(FLAC PUBLIC Ogg::ogg)
 endif()
 if(BUILD_SHARED_LIBS)
     set_target_properties(FLAC PROPERTIES
-        C_VISIBILITY_PRESET hidden
         VERSION 8.3.0
         SOVERSION 8)
+    if(NOT WIN32)
+        set_target_properties(FLAC PROPERTIES C_VISIBILITY_PRESET hidden)
+    endif()
 endif()
+
+add_library(FLAC::FLAC ALIAS FLAC)
+
 
 install(TARGETS FLAC EXPORT targets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}/"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/")
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/flac.pc"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/pkgconfig")
+
+if(INSTALL_PKGCONFIG_MODULES)
+    set(prefix "${CMAKE_INSTALL_PREFIX}")
+    set(exec_prefix "${CMAKE_INSTALL_PREFIX}")
+    set(libdir "${CMAKE_INSTALL_FULL_LIBDIR}")
+    set(includedir "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
+    configure_file(flac.pc.in flac.pc @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/flac.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+endif()
