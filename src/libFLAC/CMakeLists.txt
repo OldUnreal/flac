@@ -8,6 +8,9 @@ check_function_exists(lround HAVE_LROUND)
 
 include(CheckCSourceCompiles)
 include(CheckCPUArch)
+include(CheckAttribute)
+include(CheckVSX)
+include(CheckA64NEON)
 
 check_cpu_arch_x64(FLAC__CPU_X86_64)
 if(NOT FLAC__CPU_X86_64)
@@ -17,7 +20,21 @@ endif()
 if(FLAC__CPU_X86_64 OR FLAC__CPU_IA32)
     set(FLAC__ALIGN_MALLOC_DATA 1)
     option(WITH_AVX "Enable AVX, AVX2 optimizations" ON)
+else()
+    check_cpu_arch_ppc64(FLAC__CPU_PPC64)
+    if(FLAC__CPU_PPC64)
+        set(FLAC__CPU_PPC 1 CACHE INTERNAL "Set because FLAC__CPU_PPC64 depends on it" FORCE)
+        check_attribute_power8(FLAC__HAS_TARGET_POWER8)
+        check_attribute_power9(FLAC__HAS_TARGET_POWER9)
+        check_vsx(FLAC__USE_VSX)
+    else()
+        check_cpu_arch_arm64(FLAC__CPU_ARM64)
+        if(FLAC__CPU_ARM64)
+             check_a64neon(FLAC__HAS_A64NEONINTRIN)
+        endif()
+    endif()
 endif()
+
 
 include(CheckLanguage)
 check_language(ASM_NASM)
@@ -58,7 +75,7 @@ add_library(FLAC
     float.c
     format.c
     lpc.c
-    lpc_intrin_sse.c
+    lpc_intrin_neon.c
     lpc_intrin_sse2.c
     lpc_intrin_sse41.c
     lpc_intrin_avx2.c
@@ -80,6 +97,7 @@ add_library(FLAC
     $<$<BOOL:${OGG_FOUND}>:ogg_encoder_aspect.c>
     $<$<BOOL:${OGG_FOUND}>:ogg_helper.c>
     $<$<BOOL:${OGG_FOUND}>:ogg_mapping.c>)
+set_property(TARGET FLAC PROPERTY PROJECT_LABEL "libFLAC")
 if(TARGET FLAC-asm)
     target_sources(FLAC PRIVATE $<TARGET_OBJECTS:FLAC-asm>)
 endif()

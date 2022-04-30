@@ -45,6 +45,10 @@ EXTRA_DIST = \
 	cmake/UseSystemExtensions.cmake \
 	cmake/CheckCPUArch.cmake \
 	cmake/CheckCPUArch.c.in \
+	cmake/CheckAttribute.c.in \
+	cmake/CheckAttribute.cmake \
+	cmake/CheckVSX.c.in \
+	cmake/CheckVSX.cmake \
 	COPYING.FDL \
 	COPYING.GPL \
 	COPYING.LGPL \
@@ -58,5 +62,7 @@ EXTRA_DIST = \
 	depcomp \
 	ltmain.sh \
 	strip_non_asm_libtool_args.sh
+
+DISTCHECK_CONFIGURE_FLAGS = '--disable-version-from-git'
 
 CLEANFILES = *~
