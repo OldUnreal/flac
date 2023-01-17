@@ -6,8 +6,8 @@
 /* Target processor is big endian. */
 #cmakedefine01 CPU_IS_BIG_ENDIAN
 
-/* Target processor is little endian. */
-#cmakedefine01 CPU_IS_LITTLE_ENDIAN
+/* Target processor ARM64 */
+#cmakedefine FLAC__CPU_ARM64
 
 /* Target processor PPC */
 #cmakedefine FLAC__CPU_PPC
@@ -24,9 +24,6 @@
 /* define if you have docbook-to-man or docbook2man */
 #cmakedefine FLAC__HAS_DOCBOOK_TO_MAN
 
-/* define if you are compiling for x86 and have the NASM assembler */
-#cmakedefine FLAC__HAS_NASM
-
 /* define if you have the ogg library */
 #cmakedefine01 OGG_FOUND
 #define FLAC__HAS_OGG OGG_FOUND
@@ -42,6 +39,9 @@
 
 /* Set to 1 if <arm_neon.h> is available. */
 #cmakedefine01 FLAC__HAS_NEONINTRIN
+
+/* Set to 1 if <arm_neon.h> contains A64 intrinsics */
+#cmakedefine01 FLAC__HAS_A64NEONINTRIN
 
 /* define if building for Darwin / MacOS X */
 #cmakedefine FLAC__SYS_DARWIN
@@ -105,9 +105,6 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #cmakedefine HAVE_MEMORY_H
-
-/* Define to 1 if the system has the type `socklen_t'. */
-#cmakedefine HAVE_SOCKLEN_T
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #cmakedefine HAVE_STDINT_H

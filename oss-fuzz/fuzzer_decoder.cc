@@ -28,6 +28,8 @@
 #include <fuzzing/memory.hpp>
 
 #include "FLAC++/decoder.h"
+#include "FLAC++/metadata.h"
+#include "fuzzer_common.h"
 
 template <> FLAC__MetadataType fuzzing::datasource::Base::Get<FLAC__MetadataType>(const uint64_t id) {
     (void)id;
@@ -116,10 +118,36 @@ namespace FLAC {
                 }
 
                 void metadata_callback(const ::FLAC__StreamMetadata *metadata) override {
+                    Metadata::Prototype * cloned_object = nullptr;
                     fuzzing::memory::memory_test(metadata->type);
                     fuzzing::memory::memory_test(metadata->is_last);
                     fuzzing::memory::memory_test(metadata->length);
                     fuzzing::memory::memory_test(metadata->data);
+                    if (metadata->type == FLAC__METADATA_TYPE_STREAMINFO)
+                        cloned_object = new Metadata::StreamInfo(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_PADDING)
+                        cloned_object = new Metadata::Padding(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_APPLICATION)
+                        cloned_object = new Metadata::Application(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_SEEKTABLE)
+                        cloned_object = new Metadata::SeekTable(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_VORBIS_COMMENT)
+                        cloned_object = new Metadata::VorbisComment(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_CUESHEET)
+                        cloned_object = new Metadata::CueSheet(metadata);
+                    else if (metadata->type == FLAC__METADATA_TYPE_PICTURE)
+                        cloned_object = new Metadata::Picture(metadata);
+                    else
+                        return;
+                    if (0 != cloned_object && *cloned_object == *metadata && cloned_object->is_valid()) {
+                        if (cloned_object->get_type() == FLAC__METADATA_TYPE_SEEKTABLE)
+                            dynamic_cast<Metadata::SeekTable *>(cloned_object)->is_legal();
+                        if (cloned_object->get_type() == FLAC__METADATA_TYPE_PICTURE)
+                            dynamic_cast<Metadata::Picture *>(cloned_object)->is_legal(NULL);
+                        if (cloned_object->get_type() == FLAC__METADATA_TYPE_CUESHEET)
+                            dynamic_cast<Metadata::CueSheet *>(cloned_object)->is_legal(true,NULL);
+                    }
+                    delete cloned_object;
                 }
 
                 ::FLAC__StreamDecoderSeekStatus seek_callback(FLAC__uint64 absolute_byte_offset) override {
@@ -171,22 +199,12 @@ namespace FLAC {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     fuzzing::datasource::Datasource ds(data, size);
     FLAC::Decoder::FuzzerStream decoder(ds);
+    bool use_ogg = true;
 
     try {
-        {
-            ::FLAC__StreamDecoderInitStatus ret;
-
-            if ( ds.Get<bool>() ) {
-                ret = decoder.init();
-            } else {
-                ret = decoder.init_ogg();
-            }
-
-            if ( ret != FLAC__STREAM_DECODER_INIT_STATUS_OK ) {
-                goto end;
-            }
+        if ( ds.Get<bool>() ) {
+            use_ogg = false;
         }
-
         if ( ds.Get<bool>() ) {
 #ifdef FUZZER_DEBUG
             printf("set_ogg_serial_number\n");
@@ -244,6 +262,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             printf("set_metadata_ignore_all\n");
 #endif
             decoder.set_metadata_ignore_all();
+        }
+        {
+            ::FLAC__StreamDecoderInitStatus ret;
+            if ( !use_ogg ) {
+                ret = decoder.init();
+            } else {
+                ret = decoder.init_ogg();
+            }
+
+            if ( ret != FLAC__STREAM_DECODER_INIT_STATUS_OK ) {
+                goto end;
+            }
         }
 
         while ( ds.Get<bool>() ) {

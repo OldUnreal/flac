@@ -1,6 +1,6 @@
 /* libFLAC - Free Lossless Audio Codec library
  * Copyright (C) 2001-2009  Josh Coalson
- * Copyright (C) 2011-2016  Xiph.Org Foundation
+ * Copyright (C) 2011-2022  Xiph.Org Foundation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,28 +80,14 @@
   #endif
 #elif defined __clang__ && __has_attribute(__target__) /* clang */
   #define FLAC__SSE_TARGET(x) __attribute__ ((__target__ (x)))
-  #if __has_builtin(__builtin_ia32_maxps)
-    #define FLAC__SSE_SUPPORTED 1
-  #endif
-  #if __has_builtin(__builtin_ia32_pmuludq128)
-    #define FLAC__SSE2_SUPPORTED 1
-  #endif
-  #if __has_builtin(__builtin_ia32_pabsd128)
-    #define FLAC__SSSE3_SUPPORTED 1
-  #endif
-  #if __has_builtin(__builtin_ia32_pmuldq128)
-    #define FLAC__SSE4_1_SUPPORTED 1
-  #endif
+  #define FLAC__SSE_SUPPORTED 1
+  #define FLAC__SSE2_SUPPORTED 1
+  #define FLAC__SSSE3_SUPPORTED 1
+  #define FLAC__SSE4_1_SUPPORTED 1
   #ifdef FLAC__USE_AVX
-    #if __has_builtin(__builtin_ia32_maxps256)
-      #define FLAC__AVX_SUPPORTED 1
-    #endif
-    #if __has_builtin(__builtin_ia32_pabsd256)
-      #define FLAC__AVX2_SUPPORTED 1
-    #endif
-    #if __has_builtin(__builtin_ia32_vfmaddps)
-      #define FLAC__FMA_SUPPORTED 1
-    #endif
+    #define FLAC__AVX_SUPPORTED 1
+    #define FLAC__AVX2_SUPPORTED 1
+    #define FLAC__FMA_SUPPORTED 1
   #endif
 #elif defined __GNUC__ && !defined __clang__ && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)) /* GCC 4.9+ */
   #define FLAC__SSE_TARGET(x) __attribute__ ((__target__ (x)))
